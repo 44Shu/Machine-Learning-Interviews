@@ -20,10 +20,12 @@
     * Scalability to handle a large number of ad impressions.
     * Integration with ad serving platforms and data sources.
     * Continuous model training and updating.
-* Constraints:
+* Challenges:
     * Privacy and compliance with data protection regulations.
     * Latency requirements for real-time ad serving.
-    * Limited user attention, as users may quickly decide whether to click on an ad.
+    * Label quality for conversion rate: since it happens in offsite and we have to rely on business report
+    * Label sparsity is lower for conversion rate. -> multi-task training
+    * Delayed feedback. Conversions are observed with a long-tail delay distribution after the onsite engagements (clicks or views) have happened, resulting in false negative labels during training.
 * Data: Sources and Availability:
     * Data sources include user interaction logs, ad content data, user profiles, and contextual information.
     * Historical click and impression data for model training and evaluation.
@@ -66,13 +68,19 @@
   * Ads: 
     * IDs 
     * categories 
-    * Image/videos
+    * Image/videos/text (early fuse the multi-modal data for better efficiency, late fuse for better cross-modal interactions)
+    * Videos can be encoded whether by frame-level CNNs or 3d CNNs:
+      * SlowFast involves two pathways: one processes the video at a low frame rate (slow pathway) to capture spatial semantics, and the other at a high frame rate (fast pathway) to capture motion at fine temporal resolution.
+      * I3D (Inflated 3D ConvNet). Inflates the filters and pooling kernels of a 2D ConvNet into 3D, allowing it to learn from both spatial and temporal dimensions. It's pretrained on ImageNet and fine-tuned on video datasets like Kinetics, making it highly effective for action recognition.
     * No of impressions / clicks (ad, adv, campaign)
   * User: 
     * ID, username
     * Demographics (Age, gender, location)
     * Context (device, time of day, etc)
     * Interaction history (e.g. user ad click rate, total clicks, etc)
+    * User sequence modeling:
+     * Most recent 100 engagement actions (repin, closeup, click, enter offsite, buy, hide, etc)
+     * Most recent 100 engaged pin's embedding aggregation. Or pass to a Transformer Encoder to encode pin by pin with max pooling.
   * User-Ad interaction: 
     * IDs(user, Ad), interaction type, time, location, dwell time 
 * Feature representation / preparation
@@ -85,7 +93,9 @@
     * preprocess 
     * use e.g. SimCLR to convert -> feature vector 
   * Category: Textual data 
-    * normalization, tokenization, encoding 
+    * normalization, tokenization, encoding
+    * OCR Tesseract v5 (CNN + LSTM for recognize with CTC loss) Apply language models and beam search for spell-checking and post-processing.
+    * DistillBert to process contextual information or long sentences like descriptions.
 
 ### 6. Model Development and Offline Evaluation
 * Model selection 
@@ -112,10 +122,21 @@
   * Factorization Machine 
     * embedding based model, improves LR by automatically learning feature interactions (by learning embeddings for features) 
     * w0  + \sum (w_i.x_i) + \sum\sum <v_i, v_j> x_i.x_j
-    * cons: can't learn higher order interactions from features unlike NN
+    * cons: can't learn higher order interactions from features unlike NN, and too many low order explicity feature over-engineering may cause overfit and waste of computation power
   * Deep factorization machine (DFM)
     * combines a NN (for complex features) and a FM (for pairwise interactions)
-  * start with LR to form a baseline, then experiment with DCN & DeepFM 
+  * start with LR to form a baseline, then experiment with DCN & DeepFM
+  * Multi-class classification by predicting CTR, Conversion, Dwelling Time, etc.
+    * Multi-gate Mix of Experts
+    * Customized Gate Control
+    * Progressive Layered Extraction
+    * Experts can be DCN V2, MaskNet, Transformer
+    * Deep and Hierarchical Ensemble Network for large-scale CTR Prediction (DHEN)
+  * GCN in Recommender System
+    * Heterogenous Graph with relational edge where nodes are Ads, Users representation, and edges are their connection.
+    * Given limited data, trained to predict whether an edge will be formed between 2 heterogenous nodes.
+    * Pros: can further expand the global dependencies between user-user, ads-ads, user-ads by graph convolution over the Laplacian neighbors
+    * Cons: Not efficient in serving in real-time. Can be improved by importance pooling: random walk with restart to collect most important neighbors.
    
 * Model Training 
   * Loss function: 
