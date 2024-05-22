@@ -1,4 +1,4 @@
-# Ads Click Prediction 
+# Ads Conversion/Click Prediction 
 
 ### 1. Problem Formulation
 * Clarifying questions
@@ -49,7 +49,10 @@
   * Hide rate (#hidden ads/#impression)
 
 ### 3. Architectural Components  
-* High level architecture 
+* High level architecture:
+  * Retrieval (1. user-ads embedding similarity via ANN or LSH; 2. simply apply rule-based criteria provided by advertisers, such as target age, gender, and country.)
+  * Ranking (combine static cached or batch processed features and dynamic features, pass to fine-ranking model)
+  * Re-ranking: Maximal Margin Relevance, Determinantal Point Process
 * We can use point-wise learning to rank (LTR) 
     * The a binary classification task, where the goal is to predict whether a user will click (1) or not click (0) on a given ad impression -> given a pair of <user, ad> as input -> click or no click 
     * Features can include user demographics, ad characteristics, context (e.g., device, location), and historical behavior.
@@ -80,7 +83,10 @@
     * Interaction history (e.g. user ad click rate, total clicks, etc)
     * User sequence modeling:
      * Most recent 100 engagement actions (repin, closeup, click, enter offsite, buy, hide, etc)
-     * Most recent 100 engaged pin's embedding aggregation. Or pass to a Transformer Encoder to encode pin by pin with max pooling.
+     * Most recent 100 engaged pin's embedding aggregation (retrieval, coarse ranking). Or pass to a Transformer Encoder to encode pin by pin with max pooling (fine ranking).
+     * Some popular models:
+       * DIN: Similarity based attention. Given target item as query vector, LastN feature dense vectors multiply with their attention weights and sum. Learnable weighted aggregation.
+       * SIM: Expand to evan larger LastN. First do a hard (rule-based) search or soft (by similarity) search to narrow down larger candidate pool. Then pass to DIN.
   * User-Ad interaction: 
     * IDs(user, Ad), interaction type, time, location, dwell time 
 * Feature representation / preparation
@@ -176,4 +182,4 @@
   * info from the test or eval dataset influences the training process
   * target leakage, data contamination (from test to train set)
 * catastrophic forgetting 
-  *  model trained on new data loses its ability to perform well on previously learned tasks 
+  *  model trained on new data loses its ability to perform well on previously learned tasks, can be solved with teacher-student regularization to penality large difference between frozen production model and new model.
